@@ -299,19 +299,20 @@ pub mod _detail {
 #[macro_export]
 #[cfg(feature = "python27-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: expr) => {
+    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: block) => {
         $crate::_detail::paste::item! {
             #[no_mangle]
             #[allow(non_snake_case)]
             pub unsafe extern "C" fn [< init $name >]() {
                 // Nest init function so that $body isn't in unsafe context
-                fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
-                    $body
-                }
+                fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> $body
                 let name = concat!(stringify!($name), "\0").as_ptr() as *const _;
                 $crate::py_module_initializer_impl(name, init)
             }
         }
+    };
+    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: expr) => {
+        $crate::py_module_initializer!($name, $( $_py2, $_py3, )? |$py_id, $m_id| { $body });
     };
 }
 
@@ -349,15 +350,13 @@ pub unsafe fn py_module_initializer_impl(
 #[macro_export]
 #[cfg(feature = "python3-sys")]
 macro_rules! py_module_initializer {
-    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: expr) => {
+    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: block) => {
         $crate::_detail::paste::item! {
             #[no_mangle]
             #[allow(non_snake_case)]
             pub unsafe extern "C" fn [< PyInit_ $name >]() -> *mut $crate::_detail::ffi::PyObject {
                 // Nest init function so that $body isn't in unsafe context
-                fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> {
-                    $body
-                }
+                fn init($py_id: $crate::Python, $m_id: &$crate::PyModule) -> $crate::PyResult<()> $body
                 static mut MODULE_DEF: $crate::_detail::ffi::PyModuleDef =
                     $crate::_detail::ffi::PyModuleDef_INIT;
                 // We can't convert &'static str to *const c_char within a static initializer,
@@ -366,6 +365,9 @@ macro_rules! py_module_initializer {
                 $crate::py_module_initializer_impl(&mut MODULE_DEF, init)
             }
         }
+    };
+    ($name: ident, $( $_py2: ident, $_py3: ident, )? |$py_id: ident, $m_id: ident| $body: expr) => {
+        $crate::py_module_initializer!($name, $( $_py2, $_py3, )? |$py_id, $m_id| { $body });
     };
 }
 
